@@ -1,10 +1,9 @@
--- one active subscription per account at a time.
--- if an account upgrades, the old subscription gets cancelled_at set and a new
--- row is inserted. this gives you a full history rather than overwriting in place.
+-- one active subscription per account at a time. upgrades/downgrades create a new row
+-- with the old one getting cancelled_at set — keeps full history without overwriting.
 --
--- WARNING: the status CHECK constraint is load-bearing. several analysis queries
--- filter on specific statuses. if you add a new value here, audit the views and
--- analysis queries — particularly mrr_snapshot and mrr_movement — before deploying.
+-- don't filter on status alone to determine "active". pair it with cancelled_at IS NULL.
+-- a scheduled cancellation has status = 'active' but cancelled_at set to a future date.
+-- see notes.md for details.
 
 CREATE TABLE subscriptions (
     id                      SERIAL          PRIMARY KEY,
@@ -23,6 +22,3 @@ CREATE TABLE subscriptions (
     CONSTRAINT chk_period   CHECK (current_period_end > current_period_start),
     CONSTRAINT chk_seats    CHECK (seats >= 1)
 );
-
-COMMENT ON COLUMN subscriptions.cancelled_at IS 'Set when subscription ends. NULL = still active. Do not use status alone to determine activity.';
-COMMENT ON COLUMN subscriptions.seats IS 'Per-seat pricing. MRR = plan.price_monthly * seats.';
